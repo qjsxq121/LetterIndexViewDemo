@@ -11,7 +11,7 @@
 /** 代理方法 */
 @protocol IndexViewDelegate <NSObject>
 
-@optional
+@optional 
 - (void)tableView:(UITableView *_Nonnull)tableView didSelectRowAtIndexPath:(NSIndexPath *_Nullable)indexPath;
 - (CGFloat)tableView:(UITableView *_Nullable)tableView heightForHeaderInSection:(NSInteger)section;
 - (nullable UIView *)tableView:(UITableView *_Nullable)tableView viewForHeaderInSection:(NSInteger)section;
