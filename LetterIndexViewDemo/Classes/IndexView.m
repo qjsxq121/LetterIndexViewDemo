@@ -9,9 +9,12 @@
 #import "IndexView.h"
 #import "SectionIndicatorView.h"
 
+#import <AudioToolbox/AudioToolbox.h>
+
 #define SCREEN_WIDTH [[UIScreen mainScreen] bounds].size.width
 #define SCREEN_HEIGHT [[UIScreen mainScreen] bounds].size.height
 
+API_AVAILABLE(ios(10.0))
 @interface IndexView ()
 
 @property (nonatomic, strong) SectionIndicatorView *indicatorView;
@@ -31,6 +34,7 @@
 @property (nonatomic, assign) BOOL isFirstLoad;                                     /**< 是否第一次加载tableView */
 @property (nonatomic, assign) CGFloat oldY;                                         /**< 滚动的偏移量 */
 @property (nonatomic, assign) BOOL isAllowedChange;                                 /**< 是否允许改变当前组 */
+@property (nonatomic, strong) UIImpactFeedbackGenerator *generator;                 /**< 震动反馈  */
 
 @end
 
@@ -82,14 +86,15 @@
 - (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
     if(self.isAllowedChange && !self.isUpScroll && !self.isFirstLoad) {
         //最上面组头（不一定是第一个组头，指最近刚被顶出去的组头）又被拉回来
-        [self setSelectionIndex:section];
+        [self setSelectionIndex:section];  //section
     }
 }
 
 - (void)tableView:(UITableView *)tableView didEndDisplayingHeaderView:(UIView *)view forSection:(NSInteger)section {
     if (self.isAllowedChange && !self.isFirstLoad && self.isUpScroll) {
         //最上面的组头被顶出去
-        [self setSelectionIndex:section + 1];
+        [self setSelectionIndex:section + 1]; //section + 1
+        
     }
 }
 
@@ -108,6 +113,7 @@
 #pragma mark - ----------------------具体实现----------------------
 - (void)dealloc {
     [self removeObserver:self forKeyPath:@"selectedIndex"];
+    self.generator = nil;
 }
 
 #pragma mark - 布局
@@ -148,33 +154,46 @@
     if (oldIndex >=0 && oldIndex < self.itemsViewArray.count) {
         UILabel *oldItemLabel = self.itemsViewArray[oldIndex];
         oldItemLabel.textColor = self.titleColor;
+        self.selectedImageView.frame = CGRectZero;
     }
     if (newIndex >= 0 && newIndex < self.itemsViewArray.count) {
+        
         UILabel *newItemLabel = self.itemsViewArray[newIndex];
         newItemLabel.textColor = [UIColor whiteColor];
         //处理选中圆形
         //圆直径
-        CGFloat diameter = ((self.itemMaxSize.width > self.itemMaxSize.height) ? self.itemMaxSize.width:self.itemMaxSize.height) + self.titleSpace;
-        self.selectedImageView.frame = CGRectMake(0, 0, diameter, diameter);
-        self.selectedImageView.center = newItemLabel.center;
-        self.selectedImageView.layer.mask = [self imageMaskLayer:self.selectedImageView.bounds radiu:diameter/2.0];
-        [self insertSubview:self.selectedImageView belowSubview:newItemLabel];
+        BOOL isLetter = YES;        //是否是字母
+        unichar firstLetter = [newItemLabel.text characterAtIndex:0];
+        if ((firstLetter >= 'a' && firstLetter <= 'z')
+            || (firstLetter >= 'A' && firstLetter <= 'Z')) {
+            CGFloat diameter = ((self.itemMaxSize.width > self.itemMaxSize.height) ? self.itemMaxSize.width:self.itemMaxSize.height) + self.titleSpace;
+            self.selectedImageView.frame = CGRectMake(0, 0, diameter, diameter);
+            self.selectedImageView.center = newItemLabel.center;
+            self.selectedImageView.layer.mask = [self imageMaskLayer:self.selectedImageView.bounds radiu:diameter/2.0];
+            [self insertSubview:self.selectedImageView belowSubview:newItemLabel];
+        } else {
+            isLetter = NO;
+        }
+        
         //回调代理方法
         if (self.isCallback && self.delegate && [self.delegate respondsToSelector:@selector(selectedSectionIndexTitle:atIndex:)]) {
             [self.delegate selectedSectionIndexTitle:self.indexItems[newIndex] atIndex:newIndex];
             
-            //只有手势滑动，才会触发指示器视图
-            if (!self.indicatorView) {
-                self.indicatorView = [[SectionIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
+            if (isLetter) {
+                //只有手势滑动，才会触发指示器视图
+                if (!self.indicatorView) {
+                    self.indicatorView = [[SectionIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
+                }
+                self.indicatorView.alpha = 1.0f;
+                [self.indicatorView setOrigin:CGPointMake(SCREEN_WIDTH - self.marginRight - self.titleFontSize - 10 - self.indicatorMarginRight, newItemLabel.center.y + self.frame.origin.y) title:newItemLabel.text];
+                //将指示器视图添加到scrollView的父视图上
+                if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
+                    [self.delegate addIndicatorView:self.indicatorView];
+                }
             }
-            self.indicatorView.alpha = 1.0f;
-            [self.indicatorView setOrigin:CGPointMake(SCREEN_WIDTH - self.marginRight - self.titleFontSize - 10 - self.indicatorMarginRight, newItemLabel.center.y + self.frame.origin.y) title:newItemLabel.text];
-            //将指示器视图添加到scrollView的父视图上
-            if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
-                [self.delegate addIndicatorView:self.indicatorView];
-            }
+            
         }
-        //        NSLog(@"selected title = %@", self.indexItems[newIndex]);
+        
     }
 }
 
@@ -226,10 +245,22 @@
     for (int i=0; i<self.indexItems.count; i++) {
         NSString *title = self.indexItems[i];
         UILabel *itemLabel = [[UILabel alloc] initWithFrame:CGRectMake(CGRectGetWidth(self.frame) - self.marginRight - self.titleFontSize, startY, self.itemMaxSize.width, self.itemMaxSize.height)];
-        itemLabel.font = [UIFont boldSystemFontOfSize:self.titleFontSize];
-        itemLabel.textColor = self.titleColor;
-        itemLabel.text = title;
-        itemLabel.textAlignment = NSTextAlignmentCenter;
+        
+        //是否有搜索
+        if (title == UITableViewIndexSearch) {
+            itemLabel.text = nil;
+            NSTextAttachment *attch = [[NSTextAttachment alloc] init];
+            //定义图片内容及位置和大小
+            attch.image = [UIImage imageNamed:@"icon_user_search"];
+            attch.bounds = CGRectMake(0, 0, self.itemMaxSize.height - 2, self.itemMaxSize.height - 2);
+            NSAttributedString *attri = [NSAttributedString attributedStringWithAttachment:attch];
+            itemLabel.attributedText = attri;
+        } else {
+            itemLabel.font = [UIFont boldSystemFontOfSize:self.titleFontSize];
+            itemLabel.textColor = self.titleColor;
+            itemLabel.text = title;
+            itemLabel.textAlignment = NSTextAlignmentCenter;
+        }
         
         [self.itemsViewArray addObject:itemLabel];
         [self addSubview:itemLabel];
@@ -246,6 +277,12 @@
     //滑动期间不允许scrollview改变组
     self.isAllowedChange = NO;
     [self selectedIndexByPoint:location];
+    
+    if (@available(iOS 10.0, *)) {
+        if (self.vibrationOn)
+        self.generator = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight];
+    }
+    
     return YES;
 }
 
@@ -270,16 +307,40 @@
         self.isAnimating = YES;
     }
     else {
+        //判断是否有搜索
+        BOOL isSearch = NO;
+        if (self.indexItems.count > 0) {
+            NSString *firstTitle = self.indexItems[self.selectedIndex];
+            if (firstTitle == UITableViewIndexSearch) {
+                isSearch = YES;
+            }
+        }
+        
+        if (!isSearch) {
+            [self animationView:self.indicatorView];
+        }
+        
+    }
+    //滑动结束后，允许scrollview改变组
+    self.isAllowedChange = YES;
+    
+    self.generator = nil;
+}
+
+- (void)cancelTrackingWithEvent:(UIEvent *)event {
+    //只有当指示视图在视图上时，才能进行动画
+    if (self.indicatorView.superview) {
         [self animationView:self.indicatorView];
     }
     //滑动结束后，允许scrollview改变组
     self.isAllowedChange = YES;
+    
+    self.generator = nil;
 }
 
-- (void)cancelTrackingWithEvent:(UIEvent *)event {
-    [self animationView:self.indicatorView];
-    //滑动结束后，允许scrollview改变组
-    self.isAllowedChange = YES;
+- (void)touchesEnded:(NSSet<UITouch *> *)touches withEvent:(UIEvent *)event {
+    //滑动到视图之外时的处理
+    [self cancelTrackingWithEvent:event];
 }
 
 - (void)animationView:(UIView *)view {
@@ -324,9 +385,16 @@
         CGFloat item = self.itemMaxSize.height + self.titleSpace;
         //计算当前下标
         NSInteger index = (offsetY / item) ;//+ ((offsetY % item == 0)?0:1) - 1;
+        
         if (index != self.selectedIndex && index < self.indexItems.count && index >= 0) {
             self.isCallback = YES;
             self.selectedIndex = index;
+            if (@available(iOS 10.0, *)) {
+                if (self.vibrationOn) {
+                    [self.generator prepare];
+                    [self.generator impactOccurred];
+                }
+            }
         }
     }
 }
@@ -346,7 +414,6 @@
     }
     return _selectedImageView;
 }
-
 
 - (CAShapeLayer *)imageMaskLayer:(CGRect)bounds radiu:(CGFloat)radiu {
     UIBezierPath *maskPath = [UIBezierPath bezierPathWithRoundedRect:bounds byRoundingCorners:UIRectCornerAllCorners cornerRadii:CGSizeMake(radiu, radiu)];

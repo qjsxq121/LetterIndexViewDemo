@@ -12,6 +12,7 @@
 
 #import "IndexView.h"
 #import "TableViewHeaderView.h"
+#import "TableViewSearchHeaderView.h"
 #import "TableViewCell.h"
 
 #define NAV_HEIGHT 64
@@ -20,6 +21,7 @@
 
 static NSString *TableViewHeaderViewIdentifier = @"TableViewHeaderViewIdentifier";
 static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
+static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderViewIdentifier";
 
 @interface ViewController ()<IndexViewDelegate, IndexViewDataSource>
 
@@ -27,7 +29,8 @@ static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
 @property (nonatomic, strong) IndexView *indexView;
 
 @property (nonatomic, copy) NSArray *dataSourceArray;                           /**< 数据源数组 */
-@property (nonatomic, copy) NSArray *brandArray;                                /**< 品牌名数组 */
+@property (nonatomic, strong) NSMutableArray *brandArray;                       /**< 品牌名数组 */
+@property (nonatomic, assign) BOOL isSearchMode;                                /**< 是否有搜索栏  */
 
 @end
 
@@ -43,6 +46,12 @@ static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
     //获取拼音首字母
     NSArray *indexArray= [tempBrandArray arrayWithPinYinFirstLetterFormat];
     self.brandArray = [NSMutableArray arrayWithArray:indexArray];
+    
+    //添加搜索视图
+    self.isSearchMode = YES;
+    NSMutableDictionary *searchDic = [NSMutableDictionary dictionary];
+    [searchDic setObject:[NSMutableArray array] forKey:@"content"];
+    [self.brandArray insertObject:searchDic atIndex:0];
     
     //添加视图
     [self.view addSubview:self.demoTableView];
@@ -63,10 +72,20 @@ static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
+    //搜索头视图
+    if (section == 0 && self.isSearchMode) {
+        return 40;
+    }
     return 30;
 }
 
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
+    //搜索头视图
+    if (section == 0 && self.isSearchMode) {
+        TableViewSearchHeaderView *headerView = [tableView dequeueReusableHeaderFooterViewWithIdentifier:TableViewSearchHeaderViewIdentifier];
+        return headerView;
+    }
+    
     TableViewHeaderView *headerView = [tableView dequeueReusableHeaderFooterViewWithIdentifier:TableViewHeaderViewIdentifier];
     headerView.letter = self.brandArray[section][@"firstLetter"];
     return headerView;
@@ -84,17 +103,25 @@ static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
 
 #pragma mark - IndexView
 - (NSArray<NSString *> *)sectionIndexTitles {
-    //去掉搜索符号
-    NSMutableArray *resultArray = [NSMutableArray array];//[NSMutableArray arrayWithObject:UITableViewIndexSearch];
+    //搜索符号  [NSMutableArray arrayWithObject:UITableViewIndexSearch]; [NSMutableArray array];
+    NSMutableArray *resultArray = [NSMutableArray arrayWithObject:UITableViewIndexSearch];
     for (NSDictionary *dict in self.brandArray) {
         NSString *title = dict[@"firstLetter"];
-        [resultArray addObject:title];
+        if (title) {
+            [resultArray addObject:title];
+        }
     }
     return resultArray;
 }
 
 //当前选中组
 - (void)selectedSectionIndexTitle:(NSString *)title atIndex:(NSInteger)index {
+    
+    if (self.isSearchMode && (index == 0)) {
+        //搜索视图头视图(这里不能使用scrollToRowAtIndexPath，因为搜索组没有cell)
+        [self.demoTableView setContentOffset:CGPointZero animated:NO];
+        return;
+    }
     [self.demoTableView scrollToRowAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:index] atScrollPosition:UITableViewScrollPositionTop animated:NO];
 }
 
@@ -113,6 +140,7 @@ static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
         
         [_demoTableView registerClass:[TableViewHeaderView class] forHeaderFooterViewReuseIdentifier:TableViewHeaderViewIdentifier];
         [_demoTableView registerClass:[TableViewCell class] forCellReuseIdentifier:TableViewCellIdentifier];
+        [_demoTableView registerClass:[TableViewSearchHeaderView class] forHeaderFooterViewReuseIdentifier:TableViewSearchHeaderViewIdentifier];
     }
     return _demoTableView;
 }

@@ -11,7 +11,7 @@
 /** 代理方法 */
 @protocol IndexViewDelegate <NSObject>
 
-@optional 
+@optional
 - (void)tableView:(UITableView *_Nonnull)tableView didSelectRowAtIndexPath:(NSIndexPath *_Nullable)indexPath;
 - (CGFloat)tableView:(UITableView *_Nullable)tableView heightForHeaderInSection:(NSInteger)section;
 - (nullable UIView *)tableView:(UITableView *_Nullable)tableView viewForHeaderInSection:(NSInteger)section;
@@ -47,6 +47,9 @@
 @property (nonatomic, assign) CGFloat marginRight;                                      /**< 右边距 */
 @property (nonatomic, assign) CGFloat titleSpace;                                       /**< 文字间距 */
 @property (nonatomic, assign) CGFloat indicatorMarginRight;                             /**< 指示器视图距离右侧的偏移量 */
+//设置 --> 声音与触感 --> 系统触感反馈打开
+@property (nonatomic, assign) BOOL vibrationOn;                                         /**< 开启震动反馈 (iOS10及以上) */
+@property (nonatomic, assign) BOOL searchOn;                                            /**< 开启搜索功能  */
 
 - (void)setSelectionIndex:(NSInteger)index;                                             /** 设置当前选中组 */
 
