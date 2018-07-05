@@ -11,11 +11,6 @@
 /** 代理方法 */
 @protocol IndexViewDelegate <NSObject>
 
-@optional
-- (void)tableView:(UITableView *_Nonnull)tableView didSelectRowAtIndexPath:(NSIndexPath *_Nullable)indexPath;
-- (CGFloat)tableView:(UITableView *_Nullable)tableView heightForHeaderInSection:(NSInteger)section;
-- (nullable UIView *)tableView:(UITableView *_Nullable)tableView viewForHeaderInSection:(NSInteger)section;
-
 @required
 /** 当前选中下标 */
 - (void)selectedSectionIndexTitle:(NSString *_Nullable)title atIndex:(NSInteger)index;
@@ -27,17 +22,12 @@
 /** 数据源方法 */
 @protocol IndexViewDataSource <NSObject>
 
-@required
-- (NSInteger)tableView:(UITableView *_Nullable)tableView numberOfRowsInSection:(NSInteger)section;
-- (UITableViewCell *_Nullable)tableView:(UITableView *_Nonnull)tableView cellForRowAtIndexPath:(NSIndexPath *_Nullable)indexPath;
-- (NSInteger)numberOfSectionsInTableView:(UITableView *_Nullable)tableView;
-
 /** 组标题数组 */
 - (NSArray<NSString *> *_Nullable)sectionIndexTitles;
 
 @end
 
-@interface IndexView : UIControl <UITableViewDelegate, UITableViewDataSource, CAAnimationDelegate>
+@interface IndexView : UIControl <CAAnimationDelegate>
 
 @property (nonatomic, weak, nullable) id<IndexViewDelegate> delegate;
 @property (nonatomic, weak, nullable) id<IndexViewDataSource> dataSource;
@@ -52,5 +42,9 @@
 @property (nonatomic, assign) BOOL searchOn;                                            /**< 开启搜索功能  */
 
 - (void)setSelectionIndex:(NSInteger)index;                                             /** 设置当前选中组 */
+
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section;
+- (void)tableView:(UITableView *)tableView didEndDisplayingHeaderView:(UIView *)view forSection:(NSInteger)section;
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView;
 
 @end

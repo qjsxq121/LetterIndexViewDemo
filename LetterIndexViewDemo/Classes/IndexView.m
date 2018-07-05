@@ -10,6 +10,7 @@
 #import "SectionIndicatorView.h"
 
 #import <AudioToolbox/AudioToolbox.h>
+#import <objc/runtime.h>
 
 #define SCREEN_WIDTH [[UIScreen mainScreen] bounds].size.width
 #define SCREEN_HEIGHT [[UIScreen mainScreen] bounds].size.height
@@ -28,7 +29,6 @@ API_AVAILABLE(ios(10.0))
 @property (nonatomic, strong) UIImageView *selectedImageView;                       /**< 当前选中item的背景圆 */
 @property (nonatomic, assign) BOOL isCallback;                                      /**< 是否需要调用代理方法，如果是scrollView自带的滚动，则不需要触发代理方法，如果是滑动指示器视图，则触发代理方法 */
 @property (nonatomic, assign) BOOL isShowIndicator;                                 /**< 是否显示指示器，只有触摸标题，才显示指示器 */
-@property (nonatomic, assign) BOOL isAnimating;                                     /**< 是否在进行动画 */
 
 @property (nonatomic, assign) BOOL isUpScroll;                                      /**< 是否是上拉滚动 */
 @property (nonatomic, assign) BOOL isFirstLoad;                                     /**< 是否第一次加载tableView */
@@ -41,48 +41,6 @@ API_AVAILABLE(ios(10.0))
 @implementation IndexView
 
 #pragma mark - 数据源方法
-- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    if (self.dataSource && [self.dataSource respondsToSelector:@selector(numberOfSectionsInTableView:)]) {
-        return [self.dataSource numberOfSectionsInTableView:tableView];
-    }
-    return 0;
-}
-
-- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-    if (self.dataSource && [self.dataSource respondsToSelector:@selector(tableView:cellForRowAtIndexPath:)]) {
-        return [self.dataSource tableView:tableView numberOfRowsInSection:section];
-    }
-    return 0;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (self.dataSource && [self.dataSource respondsToSelector:@selector(tableView:cellForRowAtIndexPath:)]) {
-        return [self.dataSource tableView:tableView cellForRowAtIndexPath:indexPath];
-    }
-    return nil;
-}
-
-#pragma mark - 代理方法
-- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (self.delegate && [self.delegate respondsToSelector:@selector(tableView:didSelectRowAtIndexPath:)]) {
-        [self.delegate tableView:tableView didSelectRowAtIndexPath:indexPath];
-    }
-}
-
-- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
-    if (self.delegate && [self.delegate respondsToSelector:@selector(tableView:heightForHeaderInSection:)]) {
-        return [self.delegate tableView:tableView heightForHeaderInSection:section];
-    }
-    return 0;
-}
-
-- (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section {
-    if (self.delegate && [self.delegate respondsToSelector:@selector(tableView:viewForHeaderInSection:)]) {
-        return [self.delegate tableView:tableView viewForHeaderInSection:section];
-    }
-    return nil;
-}
-
 - (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
     if(self.isAllowedChange && !self.isUpScroll && !self.isFirstLoad) {
         //最上面组头（不一定是第一个组头，指最近刚被顶出去的组头）又被拉回来
@@ -94,7 +52,6 @@ API_AVAILABLE(ios(10.0))
     if (self.isAllowedChange && !self.isFirstLoad && self.isUpScroll) {
         //最上面的组头被顶出去
         [self setSelectionIndex:section + 1]; //section + 1
-        
     }
 }
 
@@ -299,28 +256,21 @@ API_AVAILABLE(ios(10.0))
         return;
     }
     
+    //重新计算坐标
     [self selectedIndexByPoint:location];
+
+    //判断当前是否是搜索，如果不是搜索才进行动画
+    BOOL isSearch = NO;
+    if (self.indexItems.count > 0) {
+        NSString *firstTitle = self.indexItems[self.selectedIndex];
+        if (firstTitle == UITableViewIndexSearch) {
+            isSearch = YES;
+        }
+    }
+    if (!isSearch) {
+        [self animationView:self.indicatorView];
+    }
     
-    //如果当前有动画正在进行，则停止当前动画，再开始新动画，否则，直接开始新动画
-    if ([self.indicatorView.layer animationForKey:@"basic"]) {
-        [self.indicatorView.layer removeAnimationForKey:@"basic"];
-        self.isAnimating = YES;
-    }
-    else {
-        //判断是否有搜索
-        BOOL isSearch = NO;
-        if (self.indexItems.count > 0) {
-            NSString *firstTitle = self.indexItems[self.selectedIndex];
-            if (firstTitle == UITableViewIndexSearch) {
-                isSearch = YES;
-            }
-        }
-        
-        if (!isSearch) {
-            [self animationView:self.indicatorView];
-        }
-        
-    }
     //滑动结束后，允许scrollview改变组
     self.isAllowedChange = YES;
     
@@ -344,36 +294,23 @@ API_AVAILABLE(ios(10.0))
 }
 
 - (void)animationView:(UIView *)view {
-    CABasicAnimation *animation = [CABasicAnimation animation];
-    animation.keyPath = @"opacity";
-    animation.duration = 0.3;
-    animation.fromValue = @1;
-    animation.toValue = @0;
-    animation.repeatCount = 1;
-    animation.delegate = self;
-    animation.removedOnCompletion = NO;
-    animation.fillMode = @"forwards";
-    
     //即将开始进行动画前，判断指示器视图是否已经添加到父视图上
     if (!self.indicatorView.superview) {
         if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
             [self.delegate addIndicatorView:self.indicatorView];
         }
     }
-    //当前动画可以被结束
-    self.isAnimating = NO;
-    [view.layer addAnimation:animation forKey:@"basic"];
-}
-
-- (void)animationDidStop:(CAAnimation *)anim finished:(BOOL)flag {
-    //self.isAnimating = YES，表示需要停止当前动画，开始新的动画，NO表示结束当前动画
-    if (self.isAnimating) {
-        [self animationView:self.indicatorView];
-    }
-    else {
-        [self.indicatorView removeFromSuperview];
-        [self.indicatorView.layer removeAllAnimations];
-    }
+    
+    //中断之前的动画
+    [view.layer removeAllAnimations];
+    view.alpha = 1.0;
+    [UIView animateWithDuration:.3f animations:^{
+        view.alpha = 0;
+    } completion:^(BOOL finished) {
+        if (finished) {
+            [self.indicatorView removeFromSuperview];
+        }
+    }];
 }
 
 #pragma mark - 根据Y坐标计算选中位置，当坐标有效时，返回YES
@@ -398,6 +335,7 @@ API_AVAILABLE(ios(10.0))
         }
     }
 }
+
 
 #pragma mark - getter
 - (NSMutableArray *)itemsViewArray {

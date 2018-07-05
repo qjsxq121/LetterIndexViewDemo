@@ -23,7 +23,7 @@ static NSString *TableViewHeaderViewIdentifier = @"TableViewHeaderViewIdentifier
 static NSString *TableViewCellIdentifier = @"TableViewCellIdentifier";
 static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderViewIdentifier";
 
-@interface ViewController ()<IndexViewDelegate, IndexViewDataSource>
+@interface ViewController ()<UITableViewDelegate, UITableViewDataSource, IndexViewDelegate, IndexViewDataSource>
 
 @property (nonatomic, strong) UITableView *demoTableView;
 @property (nonatomic, strong) IndexView *indexView;
@@ -101,6 +101,18 @@ static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderVi
     return cell;
 }
 
+- (void)tableView:(UITableView *)tableView willDisplayHeaderView:(UIView *)view forSection:(NSInteger)section {
+    [self.indexView tableView:tableView willDisplayHeaderView:view forSection:section];
+}
+
+- (void)tableView:(UITableView *)tableView didEndDisplayingHeaderView:(UIView *)view forSection:(NSInteger)section {
+    [self.indexView tableView:tableView didEndDisplayingHeaderView:view forSection:section];
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    [self.indexView scrollViewDidScroll:scrollView];
+}
+
 #pragma mark - IndexView
 - (NSArray<NSString *> *)sectionIndexTitles {
     //搜索符号  [NSMutableArray arrayWithObject:UITableViewIndexSearch]; [NSMutableArray array];
@@ -134,8 +146,8 @@ static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderVi
 - (UITableView *)demoTableView {
     if (!_demoTableView) {
         _demoTableView = [[UITableView alloc] initWithFrame:CGRectMake(0, NAV_HEIGHT, SCREEN_WIDTH, SCREEN_HEIGHT - NAV_HEIGHT) style:(UITableViewStylePlain)];
-        _demoTableView.delegate = self.indexView;
-        _demoTableView.dataSource = self.indexView;
+        _demoTableView.delegate = self;
+        _demoTableView.dataSource = self;
         _demoTableView.showsVerticalScrollIndicator = NO;
         
         [_demoTableView registerClass:[TableViewHeaderView class] forHeaderFooterViewReuseIdentifier:TableViewHeaderViewIdentifier];
