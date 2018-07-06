@@ -69,7 +69,6 @@ API_AVAILABLE(ios(10.0))
 
 #pragma mark - ----------------------具体实现----------------------
 - (void)dealloc {
-    [self removeObserver:self forKeyPath:@"selectedIndex"];
     self.generator = nil;
 }
 
@@ -86,7 +85,6 @@ API_AVAILABLE(ios(10.0))
     else {
         return;
     }
-    [self addObserver:self forKeyPath:@"selectedIndex" options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld context:nil];
     //初始化属性设置
     [self attributeSettings];
     //初始化title
@@ -99,58 +97,6 @@ API_AVAILABLE(ios(10.0))
         //改变组下标
         self.isCallback = NO;
         self.selectedIndex = index;
-    }
-}
-
-#pragma mark - KVO监听当前选中下标
--(void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary<NSString *,id> *)change context:(void *)context{
-    //下标
-    NSInteger newIndex = [[change objectForKey:@"new"] integerValue];
-    NSInteger oldIndex = [[change objectForKey:@"old"] integerValue];
-    //处理新旧item
-    if (oldIndex >=0 && oldIndex < self.itemsViewArray.count) {
-        UILabel *oldItemLabel = self.itemsViewArray[oldIndex];
-        oldItemLabel.textColor = self.titleColor;
-        self.selectedImageView.frame = CGRectZero;
-    }
-    if (newIndex >= 0 && newIndex < self.itemsViewArray.count) {
-        
-        UILabel *newItemLabel = self.itemsViewArray[newIndex];
-        newItemLabel.textColor = [UIColor whiteColor];
-        //处理选中圆形
-        //圆直径
-        BOOL isLetter = YES;        //是否是字母
-        unichar firstLetter = [newItemLabel.text characterAtIndex:0];
-        if ((firstLetter >= 'a' && firstLetter <= 'z')
-            || (firstLetter >= 'A' && firstLetter <= 'Z')) {
-            CGFloat diameter = ((self.itemMaxSize.width > self.itemMaxSize.height) ? self.itemMaxSize.width:self.itemMaxSize.height) + self.titleSpace;
-            self.selectedImageView.frame = CGRectMake(0, 0, diameter, diameter);
-            self.selectedImageView.center = newItemLabel.center;
-            self.selectedImageView.layer.mask = [self imageMaskLayer:self.selectedImageView.bounds radiu:diameter/2.0];
-            [self insertSubview:self.selectedImageView belowSubview:newItemLabel];
-        } else {
-            isLetter = NO;
-        }
-        
-        //回调代理方法
-        if (self.isCallback && self.delegate && [self.delegate respondsToSelector:@selector(selectedSectionIndexTitle:atIndex:)]) {
-            [self.delegate selectedSectionIndexTitle:self.indexItems[newIndex] atIndex:newIndex];
-            
-            if (isLetter) {
-                //只有手势滑动，才会触发指示器视图
-                if (!self.indicatorView) {
-                    self.indicatorView = [[SectionIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
-                }
-                self.indicatorView.alpha = 1.0f;
-                [self.indicatorView setOrigin:CGPointMake(SCREEN_WIDTH - self.marginRight - self.titleFontSize - 10 - self.indicatorMarginRight, newItemLabel.center.y + self.frame.origin.y) title:newItemLabel.text];
-                //将指示器视图添加到scrollView的父视图上
-                if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
-                    [self.delegate addIndicatorView:self.indicatorView];
-                }
-            }
-            
-        }
-        
     }
 }
 
@@ -336,6 +282,59 @@ API_AVAILABLE(ios(10.0))
     }
 }
 
+#pragma mark - setter
+- (void)setSelectedIndex:(NSInteger)selectedIndex {
+    //下标
+    NSInteger newIndex = selectedIndex;
+    NSInteger oldIndex = _selectedIndex;
+    //处理新旧item
+    if (oldIndex >=0 && oldIndex < self.itemsViewArray.count) {
+        UILabel *oldItemLabel = self.itemsViewArray[oldIndex];
+        oldItemLabel.textColor = self.titleColor;
+        self.selectedImageView.frame = CGRectZero;
+    }
+    if (newIndex >= 0 && newIndex < self.itemsViewArray.count) {
+        
+        UILabel *newItemLabel = self.itemsViewArray[newIndex];
+        newItemLabel.textColor = [UIColor whiteColor];
+        //处理选中圆形
+        //圆直径
+        BOOL isLetter = YES;        //是否是字母
+        unichar firstLetter = [newItemLabel.text characterAtIndex:0];
+        if ((firstLetter >= 'a' && firstLetter <= 'z')
+            || (firstLetter >= 'A' && firstLetter <= 'Z')) {
+            CGFloat diameter = ((self.itemMaxSize.width > self.itemMaxSize.height) ? self.itemMaxSize.width:self.itemMaxSize.height) + self.titleSpace;
+            self.selectedImageView.frame = CGRectMake(0, 0, diameter, diameter);
+            self.selectedImageView.center = newItemLabel.center;
+            self.selectedImageView.layer.mask = [self imageMaskLayer:self.selectedImageView.bounds radiu:diameter/2.0];
+            [self insertSubview:self.selectedImageView belowSubview:newItemLabel];
+        } else {
+            isLetter = NO;
+        }
+        
+        //回调代理方法
+        if (self.isCallback && self.delegate && [self.delegate respondsToSelector:@selector(selectedSectionIndexTitle:atIndex:)]) {
+            [self.delegate selectedSectionIndexTitle:self.indexItems[newIndex] atIndex:newIndex];
+            
+            if (isLetter) {
+                //只有手势滑动，才会触发指示器视图
+                if (!self.indicatorView) {
+                    self.indicatorView = [[SectionIndicatorView alloc] initWithFrame:CGRectMake(0, 0, 50, 50)];
+                }
+                self.indicatorView.alpha = 1.0f;
+                [self.indicatorView setOrigin:CGPointMake(SCREEN_WIDTH - self.marginRight - self.titleFontSize - 10 - self.indicatorMarginRight, newItemLabel.center.y + self.frame.origin.y) title:newItemLabel.text];
+                //将指示器视图添加到scrollView的父视图上
+                if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
+                    [self.delegate addIndicatorView:self.indicatorView];
+                }
+            }
+            
+        }
+        
+    }
+    
+    _selectedIndex = selectedIndex;
+}
 
 #pragma mark - getter
 - (NSMutableArray *)itemsViewArray {
