@@ -247,15 +247,11 @@ API_AVAILABLE(ios(10.0))
         }
     }
     
-    //中断之前的动画
-    [view.layer removeAllAnimations];
     view.alpha = 1.0;
     [UIView animateWithDuration:.3f animations:^{
         view.alpha = 0;
     } completion:^(BOOL finished) {
-        if (finished) {
-            [self.indicatorView removeFromSuperview];
-        }
+        //视图不移除，保证视图在连续点击时，不会出现瞬间消失的情况
     }];
 }
 
