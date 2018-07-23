@@ -298,7 +298,7 @@ API_AVAILABLE(ios(10.0))
         BOOL isLetter = YES;        //是否是字母
         unichar firstLetter = [newItemLabel.text characterAtIndex:0];
         if ((firstLetter >= 'a' && firstLetter <= 'z')
-            || (firstLetter >= 'A' && firstLetter <= 'Z')) {
+            || (firstLetter >= 'A' && firstLetter <= 'Z') || [newItemLabel.text isEqualToString:@"#"]) {
             CGFloat diameter = ((self.itemMaxSize.width > self.itemMaxSize.height) ? self.itemMaxSize.width:self.itemMaxSize.height) + self.titleSpace;
             self.selectedImageView.frame = CGRectMake(0, 0, diameter, diameter);
             self.selectedImageView.center = newItemLabel.center;
