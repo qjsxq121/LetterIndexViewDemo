@@ -73,7 +73,7 @@ API_AVAILABLE(ios(10.0))
 }
 
 #pragma mark - 布局
-- (void)didMoveToSuperview {
+- (void)reload {
     self.isShowIndicator = NO;
     //获取标题组
     if (self.dataSource && [self.dataSource respondsToSelector:@selector(sectionIndexTitles)]) {
@@ -85,10 +85,15 @@ API_AVAILABLE(ios(10.0))
     else {
         return;
     }
+    //    [self addObserver:self forKeyPath:@"selectedIndex" options:NSKeyValueObservingOptionNew | NSKeyValueObservingOptionOld context:nil];
     //初始化属性设置
     [self attributeSettings];
     //初始化title
     [self initialiseAllTitles];
+}
+
+- (void)didMoveToSuperview {
+    [self reload];
 }
 
 #pragma mark - 外部传入当前选中组
@@ -127,6 +132,14 @@ API_AVAILABLE(ios(10.0))
 
 #pragma mark - 初始化title
 - (void)initialiseAllTitles {
+    //清除缓存
+    for (UIView *subview in self.itemsViewArray) {
+        [subview removeFromSuperview];
+    }
+    [self.itemsViewArray removeAllObjects];
+    self.selectedImageView.layer.mask = nil;
+    self.selectedImageView.frame = CGRectZero;
+    
     //高度是否符合
     CGFloat totalHeight = (self.indexItems.count * self.titleFontSize) + ((self.indexItems.count + 1) * self.titleSpace);
     if (CGRectGetHeight(self.frame) < totalHeight) {
@@ -244,10 +257,11 @@ API_AVAILABLE(ios(10.0))
     if (!self.indicatorView.superview) {
         if (self.delegate && [self.delegate respondsToSelector:@selector(addIndicatorView:)]) {
             [self.delegate addIndicatorView:self.indicatorView];
+            //将view放在这里，而不是if外，是确保点击搜索视图时，不会出现indicatorView
+            view.alpha = 1.0;
         }
     }
     
-    view.alpha = 1.0;
     [UIView animateWithDuration:.3f animations:^{
         view.alpha = 0;
     } completion:^(BOOL finished) {

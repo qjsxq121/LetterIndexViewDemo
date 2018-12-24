@@ -47,4 +47,6 @@
 - (void)tableView:(UITableView *)tableView didEndDisplayingHeaderView:(UIView *)view forSection:(NSInteger)section;
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView;
 
+- (void)reload;
+
 @end

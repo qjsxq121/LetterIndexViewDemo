@@ -27,6 +27,7 @@ static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderVi
 
 @property (nonatomic, strong) UITableView *demoTableView;
 @property (nonatomic, strong) IndexView *indexView;
+@property (nonatomic, strong) UIButton *reloadButton;                           /**< 刷新按钮  */
 
 @property (nonatomic, copy) NSArray *dataSourceArray;                           /**< 数据源数组 */
 @property (nonatomic, strong) NSMutableArray *brandArray;                       /**< 品牌名数组 */
@@ -56,8 +57,31 @@ static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderVi
     //添加视图
     [self.view addSubview:self.demoTableView];
     [self.view addSubview:self.indexView];
+    [self.view addSubview:self.reloadButton];
     //默认设置第一组
     [self.indexView setSelectionIndex:0];
+}
+
+
+- (void)reloadButtonAction:(UIButton *)sender {
+    self.dataSourceArray = @[@"百年灵", @"宝齐莱", @"瑞宝", @"沛纳海", @"宇舶", @"真力时", @"万国", @"欧米茄", @"劳力士", @"朗格"];
+    //解析数据
+    NSMutableArray *tempBrandArray = [NSMutableArray array];
+    for (NSString *brandName in self.dataSourceArray) {
+        [tempBrandArray addObject:brandName];
+    }
+    //获取拼音首字母
+    NSArray *indexArray= [tempBrandArray arrayWithPinYinFirstLetterFormat];
+    self.brandArray = [NSMutableArray arrayWithArray:indexArray];
+    
+    //添加搜索视图
+    self.isSearchMode = YES;
+    NSMutableDictionary *searchDic = [NSMutableDictionary dictionary];
+    [searchDic setObject:[NSMutableArray array] forKey:@"content"];
+    [self.brandArray insertObject:searchDic atIndex:0];
+    
+    [self.demoTableView reloadData];
+    [self.indexView reload];
 }
 
 #pragma mark - 代理方法
@@ -171,6 +195,17 @@ static NSString *TableViewSearchHeaderViewIdentifier = @"TableViewSearchHeaderVi
         _dataSourceArray = @[@"卡地亚", @"法兰克穆勒", @"尊皇", @"蒂芙尼", @"艾米龙", @"NOMOS", @"依波路", @"波尔", @"帝舵", @"名士", @"芝柏", @"积家", @"尼芙尔", @"泰格豪雅", @"艾美", @"拉芙兰瑞", @"宝格丽", @"古驰", @"香奈儿", @"迪奥", @"雷达", @"豪利时", @"路易.威登", @"蕾蒙威", @"康斯登", @"爱马仕", @"昆仑", @"斯沃琪", @"WEMPE", @"万宝龙", @"浪琴", @"柏莱士", @"雅克德罗", @"雅典", @"帕玛强尼", @"格拉苏蒂原创", @"伯爵", @"百达翡丽", @"爱彼", @"宝玑", @"江诗丹顿", @"宝珀", @"理查德·米勒", @"梵克雅宝", @"罗杰杜彼", @"萧邦", @"百年灵", @"宝齐莱", @"瑞宝", @"沛纳海", @"宇舶", @"真力时", @"万国", @"欧米茄", @"劳力士", @"朗格"];
     }
     return _dataSourceArray;
+}
+
+- (UIButton *)reloadButton {
+    if (!_reloadButton) {
+        _reloadButton = [UIButton buttonWithType:(UIButtonTypeCustom)];
+        [_reloadButton setTitle:@"更新列表" forState:(UIControlStateNormal)];
+        [_reloadButton setTitleColor:UIColor.blueColor forState:(UIControlStateNormal)];
+        _reloadButton.frame = CGRectMake(SCREEN_WIDTH - 80 - 15, NAV_HEIGHT - 50, 80, 50);
+        [_reloadButton addTarget:self action:@selector(reloadButtonAction:) forControlEvents:(UIControlEventTouchUpInside)];
+    }
+    return _reloadButton;
 }
 
 - (void)didReceiveMemoryWarning {
